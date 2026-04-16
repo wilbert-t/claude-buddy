@@ -66,7 +66,21 @@ Medium and high-risk operations fire a native banner and wait for your input.
 
 ## Configuration
 
-Edit `~/.claude-notifier/settings.json`. All fields are optional — defaults work out of the box.
+Quick settings commands:
+
+```bash
+# View current settings
+npx claude-alert config
+
+# Update a setting
+npx claude-alert config --set notificationsEnabled=false
+npx claude-alert config --set autoApproveLevel=medium
+
+# Open settings in your editor/app
+npx claude-alert config --open
+```
+
+Advanced fallback: edit `~/.claude-notifier/settings.json` directly. All fields are optional — defaults work out of the box.
 
 ```json
 {
