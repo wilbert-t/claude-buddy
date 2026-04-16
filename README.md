@@ -16,7 +16,7 @@ Never miss a Claude Code approval prompt.
 
 Hooks register automatically. Done.
 
-> **Want the menu bar robot?** The macOS menu bar app (animated icon + "Open Terminal" button) is a separate download — grab it from [Releases](https://github.com/wilbert-t/claude-alert/releases/latest). Takes 30 seconds.
+> **Menu bar robot status (macOS):** Companion app distribution is still in progress. Installer-based companion setup is **not available yet** while signing/notarization is being finalized.
 
 ### Via npm
 
@@ -25,6 +25,14 @@ npx claude-alert install
 ```
 
 Works on macOS, Linux, and Windows.
+
+macOS companion app:
+
+```bash
+npx claude-alert install --with-companion
+```
+
+This companion install path is not available yet (release signing/notarization in progress). Core Claude Alert notifications still work without it.
 
 ---
 

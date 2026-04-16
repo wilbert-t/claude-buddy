@@ -48,11 +48,18 @@ shasum -a 256 ClaudeNotifier.app.zip
 # Compare with the SHA256 listed on the release page
 ```
 
+If you install with `npx claude-alert install --with-companion`, the installer enforces:
+- SHA256 check against the release checksum asset
+- `codesign --verify --deep --strict`
+- `spctl --assess --type execute`
+
+If any check fails, companion installation is aborted.
+
 If you prefer to audit the code yourself, build from source:
 
 ```bash
 git clone https://github.com/wilbert-t/claude-alert.git
-cd claude-buddy/swift-app
+cd claude-alert/swift-app
 xcodebuild -project ClaudeNotifier.xcodeproj \
   -scheme ClaudeNotifier -configuration Release -derivedDataPath .build
 ```

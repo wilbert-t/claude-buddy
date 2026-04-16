@@ -21,7 +21,9 @@ Claude Alert — Claude Code notification system
 https://github.com/wilbert-t/claude-alert
 
 Usage:
-  npx claude-alert install    Install hooks and configure
+  npx claude-alert install [--with-companion]
+                              Install hooks and configure
+                              --with-companion (macOS): download + verify + install menu bar app
   npx claude-alert uninstall  Remove hooks and clean up
 
 Platform support:

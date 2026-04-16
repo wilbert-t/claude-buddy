@@ -4,12 +4,19 @@
  * Install script for Claude Code Notifier skill
  *
  * Configures the Notification hook in ~/.claude/settings.json
- * Creates ~/.claude-notifier/ directory and default settings.json
+ * Creates ~/.claude-notifier/ directory and default settings.json.
+ *
+ * Optional: --with-companion (macOS only)
+ * Downloads and installs ClaudeNotifier.app from latest GitHub release with:
+ *   1) SHA256 verification (required)
+ *   2) code signature verification (required)
+ *   3) Gatekeeper assessment (required)
  */
 
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { createHash } from 'crypto';
 import { execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import * as settingsManager from '../scripts/settings.js';
@@ -19,6 +26,13 @@ const CLAUDE_HOME = path.join(os.homedir(), '.claude');
 const SETTINGS_PATH = path.join(CLAUDE_HOME, 'settings.json');
 const NOTIFIER_DIR = path.join(os.homedir(), '.claude-notifier');
 const NOTIFIER_SETTINGS = path.join(NOTIFIER_DIR, 'settings.json');
+const COMPANION_DIR = path.join(NOTIFIER_DIR, 'companion');
+const COMPANION_APP_PATH = path.join(COMPANION_DIR, 'ClaudeNotifier.app');
+
+const GITHUB_OWNER = 'wilbert-t';
+const GITHUB_REPO = 'claude-alert';
+const RELEASES_LATEST_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
+const COMPANION_ZIP_NAME = 'ClaudeNotifier.app.zip';
 
 // Scripts are copied to a stable location so npx cache clears don't break hooks
 const SOURCE_SCRIPTS_DIR = path.join(__dirname, '..', 'scripts');
@@ -27,6 +41,207 @@ const NOTIFY_SCRIPT = path.join(STABLE_SCRIPTS_DIR, 'notify.js');
 const PRE_TOOL_SCRIPT = path.join(STABLE_SCRIPTS_DIR, 'pre-tool.js');
 const POST_TOOL_SCRIPT = path.join(STABLE_SCRIPTS_DIR, 'post-tool.js');
 
+function parseOptions() {
+  const known = new Set(['--with-companion']);
+  const flags = process.argv.slice(2).filter(arg => arg.startsWith('--'));
+  const unknown = flags.filter(flag => !known.has(flag));
+
+  if (unknown.length > 0) {
+    throw new Error(`Unknown option(s): ${unknown.join(', ')}`);
+  }
+
+  return {
+    withCompanion: flags.includes('--with-companion')
+  };
+}
+
+function hasCommand(command) {
+  try {
+    execFileSync('which', [command], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function ensureCommand(command, reason) {
+  if (!hasCommand(command)) {
+    throw new Error(`Required command not found: ${command} (${reason})`);
+  }
+}
+
+function sha256Hex(filePath) {
+  const data = fs.readFileSync(filePath);
+  return createHash('sha256').update(data).digest('hex');
+}
+
+function extractExpectedSha256(checksumText, targetFileName) {
+  const lines = String(checksumText || '')
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean);
+
+  const targetBase = path.basename(targetFileName);
+
+  for (const line of lines) {
+    // sha256sum format: "<hash>  <file>"
+    const sumFormat = line.match(/^([a-fA-F0-9]{64})\s+\*?(.+)$/);
+    if (sumFormat) {
+      const [, hash, fileName] = sumFormat;
+      if (path.basename(fileName.trim()) === targetBase) {
+        return hash.toLowerCase();
+      }
+    }
+
+    // openssl format: "SHA256(file) = <hash>"
+    const opensslFormat = line.match(/^SHA256\s*\((.+)\)\s*=\s*([a-fA-F0-9]{64})$/i);
+    if (opensslFormat) {
+      const [, fileName, hash] = opensslFormat;
+      if (path.basename(fileName.trim()) === targetBase) {
+        return hash.toLowerCase();
+      }
+    }
+  }
+
+  // Single-line fallback: file contains only the hash
+  if (lines.length === 1 && /^[a-fA-F0-9]{64}$/.test(lines[0])) {
+    return lines[0].toLowerCase();
+  }
+
+  return null;
+}
+
+async function fetchJson(url) {
+  if (typeof fetch !== 'function') {
+    throw new Error('This Node.js runtime does not support fetch(). Please use Node 18+.');
+  }
+
+  const res = await fetch(url, {
+    headers: {
+      'Accept': 'application/vnd.github+json',
+      'User-Agent': 'claude-alert-installer'
+    }
+  });
+
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} while requesting ${url}`);
+  }
+
+  return res.json();
+}
+
+async function downloadFile(url, destinationPath, label) {
+  const res = await fetch(url, {
+    headers: {
+      'Accept': 'application/octet-stream',
+      'User-Agent': 'claude-alert-installer'
+    }
+  });
+
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} while downloading ${label}`);
+  }
+
+  const bytes = Buffer.from(await res.arrayBuffer());
+  fs.writeFileSync(destinationPath, bytes);
+  return bytes.length;
+}
+
+function verifyCompanionApp(appPath) {
+  ensureCommand('codesign', 'required for signature verification');
+  ensureCommand('spctl', 'required for Gatekeeper assessment');
+
+  try {
+    execFileSync('codesign', ['--verify', '--deep', '--strict', appPath], { stdio: 'ignore' });
+  } catch (err) {
+    throw new Error(`Companion signature verification failed (codesign): ${err.message}`);
+  }
+
+  try {
+    execFileSync('spctl', ['--assess', '--type', 'execute', '--verbose=2', appPath], { stdio: 'ignore' });
+  } catch (err) {
+    throw new Error(`Companion Gatekeeper assessment failed (spctl): ${err.message}`);
+  }
+}
+
+async function installCompanionApp() {
+  if (process.platform !== 'darwin') {
+    console.warn('⚠️  --with-companion is macOS-only. Skipping companion install.');
+    return false;
+  }
+
+  ensureCommand('unzip', 'required to extract ClaudeNotifier.app.zip');
+  ensureCommand('open', 'required to launch ClaudeNotifier.app');
+
+  console.log('\n🤖 Installing macOS companion app (--with-companion)...');
+  console.log('   Fetching latest release metadata...');
+
+  const release = await fetchJson(RELEASES_LATEST_URL);
+  const assets = Array.isArray(release.assets) ? release.assets : [];
+
+  const zipAsset = assets.find(asset => asset.name === COMPANION_ZIP_NAME);
+  if (!zipAsset?.browser_download_url) {
+    throw new Error(`Latest release does not include ${COMPANION_ZIP_NAME}`);
+  }
+
+  const checksumAsset = assets.find(
+    asset => /sha256|checksums?/i.test(asset.name) && asset.browser_download_url
+  );
+  if (!checksumAsset) {
+    throw new Error(
+      'Latest release is missing a checksum asset (expected name containing "sha256" or "checksums"). Refusing install.'
+    );
+  }
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-alert-companion-'));
+  const zipPath = path.join(tempDir, zipAsset.name);
+  const checksumPath = path.join(tempDir, checksumAsset.name);
+
+  try {
+    console.log(`   Downloading ${zipAsset.name}...`);
+    await downloadFile(zipAsset.browser_download_url, zipPath, zipAsset.name);
+    console.log(`✓ Downloaded ${zipAsset.name}`);
+
+    console.log(`   Downloading ${checksumAsset.name}...`);
+    await downloadFile(checksumAsset.browser_download_url, checksumPath, checksumAsset.name);
+    console.log(`✓ Downloaded ${checksumAsset.name}`);
+
+    const checksumText = fs.readFileSync(checksumPath, 'utf-8');
+    const expectedHash = extractExpectedSha256(checksumText, zipAsset.name);
+    if (!expectedHash) {
+      throw new Error(`Could not find SHA256 entry for ${zipAsset.name} in ${checksumAsset.name}`);
+    }
+
+    const actualHash = sha256Hex(zipPath);
+    if (actualHash.toLowerCase() !== expectedHash.toLowerCase()) {
+      throw new Error(
+        `SHA256 mismatch for ${zipAsset.name}. Expected ${expectedHash}, got ${actualHash}`
+      );
+    }
+    console.log('✓ SHA256 checksum verified');
+
+    fs.mkdirSync(COMPANION_DIR, { recursive: true });
+    fs.rmSync(COMPANION_APP_PATH, { recursive: true, force: true });
+    execFileSync('unzip', ['-o', zipPath, '-d', COMPANION_DIR], { stdio: 'ignore' });
+
+    if (!fs.existsSync(COMPANION_APP_PATH)) {
+      throw new Error('Archive extracted but ClaudeNotifier.app was not found');
+    }
+
+    verifyCompanionApp(COMPANION_APP_PATH);
+    console.log('✓ Companion signature + Gatekeeper checks passed');
+
+    execFileSync('open', [COMPANION_APP_PATH], { stdio: 'ignore' });
+    console.log(`✓ Companion app installed and launched from ${COMPANION_APP_PATH}`);
+    return true;
+  } finally {
+    try {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    } catch {
+      // Best-effort cleanup only
+    }
+  }
+}
 
 /**
  * Ensure Claude Code settings directory exists
@@ -224,6 +439,7 @@ function verifySounds() {
  * Main install function
  */
 async function install() {
+  const options = parseOptions();
   console.log('\n🔔 Claude Code Notifier — Installation\n');
 
   // Plugin mode: hooks are already registered by hooks/hooks.json.
@@ -262,6 +478,12 @@ async function install() {
     console.log('\n🔊 Verifying alert sounds...');
     verifySounds();
 
+    // Step 6: Optional companion install (explicit opt-in)
+    let companionInstalled = false;
+    if (options.withCompanion) {
+      companionInstalled = await installCompanionApp();
+    }
+
     // Success!
     console.log('\n✅ Installation complete!\n');
     console.log('📋 Next steps:');
@@ -273,8 +495,12 @@ async function install() {
         : 'paplay /usr/share/sounds/freedesktop/stereo/message.oga';
     console.log(`  2. Test a sound: ${soundTest}`);
     if (process.platform === 'darwin') {
-      console.log('  3. (Optional) Install the menu bar app for richer notifications:');
-      console.log('     https://github.com/wilbert-t/claude-alert/releases/latest');
+      if (companionInstalled) {
+        console.log('  3. Companion app is installed and running.');
+      } else {
+        console.log('  3. (Optional) One-line companion install with verification:');
+        console.log('     npx claude-alert install --with-companion');
+      }
     }
     console.log('  4. To uninstall: npx claude-alert uninstall\n');
 
