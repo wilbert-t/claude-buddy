@@ -538,22 +538,10 @@ async function install() {
     // Success!
     console.log('\n✅ Installation complete!\n');
     console.log('📋 Next steps:');
-    console.log('  1. Review settings: nano ~/.claude-notifier/settings.json');
-    const soundTest = process.platform === 'darwin'
-      ? 'afplay /System/Library/Sounds/Glass.aiff'
-      : process.platform === 'win32'
-        ? 'powershell -Command "[System.Media.SystemSounds]::Asterisk.Play()"'
-        : 'paplay /usr/share/sounds/freedesktop/stereo/message.oga';
-    console.log(`  2. Test a sound: ${soundTest}`);
-    if (process.platform === 'darwin') {
-      if (companionInstalled) {
-        console.log('  3. Companion app is installed and running.');
-      } else {
-        console.log('  3. (Optional) One-line companion install with verification:');
-        console.log('     npx claude-alert install --with-companion');
-      }
-    }
-    console.log('  4. To uninstall: npx claude-alert uninstall\n');
+    console.log('  1. Restart Claude Code to activate hooks');
+    console.log('  2. Review settings: npx claude-alert config');
+    console.log('  3. Want the robot menu bar app? Build from source (Tier 2):');
+    console.log('     https://github.com/wilbert-t/claude-buddy#tier-2----full-install-robot--rich-notifications');
 
   } catch (err) {
     console.error('\n❌ Installation failed:', err.message, '\n');
