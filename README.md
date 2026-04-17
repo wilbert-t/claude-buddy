@@ -45,13 +45,16 @@ cd claude-buddy
 node setup/install.js
 ```
 
-**Step 3 — Build the companion app:**
-1. Open `swift-app/ClaudeNotifier.xcodeproj` in Xcode
-2. Select your Mac as the target device
-3. Press **Cmd+R** to build and run
-4. The robot appears in your menu bar
+**Step 3 — Build and launch the companion app:**
+```bash
+xcodebuild -project swift-app/ClaudeNotifier.xcodeproj \
+  -scheme ClaudeNotifier \
+  -configuration Release \
+  -derivedDataPath /tmp/claude-notifier-build && \
+open /tmp/claude-notifier-build/Build/Products/Release/ClaudeNotifier.app
+```
 
-The app is locally signed by Xcode — no Apple Developer account needed.
+The robot appears in your menu bar. Locally signed by Xcode — no Apple Developer account needed.
 
 **Uninstall:**
 ```bash
