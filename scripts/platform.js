@@ -43,10 +43,7 @@ export function notify(title, body, _platform = process.platform) {
     if (_platform === 'darwin') {
       const tnBin = path.join(os.homedir(), '.claude-notifier', 'bin', 'terminal-notifier.app', 'Contents', 'MacOS', 'terminal-notifier');
       if (fs.existsSync(tnBin)) {
-        const iconPath = path.join(os.homedir(), '.claude-notifier', 'icon.png');
-        const tnArgs = ['-title', safeTitle, '-message', safeBody, '-sound', 'default'];
-        if (fs.existsSync(iconPath)) tnArgs.push('-appIcon', iconPath);
-        execFileSync(tnBin, tnArgs, { stdio: 'ignore', timeout: 5000 });
+        execFileSync(tnBin, ['-title', safeTitle, '-message', safeBody, '-sound', 'default'], { stdio: 'ignore', timeout: 5000 });
       } else {
         execFileSync(
           'osascript',
