@@ -34,6 +34,32 @@ npx claude-alert install --with-companion
 
 This companion install path is not available yet (release signing/notarization in progress). Core Claude Alert notifications still work without it.
 
+### From source
+
+Clone the repo and run the install script directly — no build step, no external dependencies required.
+
+```bash
+git clone https://github.com/wilbert-t/claude-alert.git
+cd claude-alert
+node setup/install.js
+```
+
+This registers all hooks, copies scripts to `~/.claude-notifier/scripts/`, and compiles the Swift notification helper on macOS (requires Xcode CLI tools: `xcode-select --install`).
+
+**Optional — menu bar companion app (macOS, when available):**
+
+```bash
+node setup/install.js --with-companion
+```
+
+> Note: `--with-companion` requires a signed + notarized release asset to be published. Until then, core notifications (banners + sounds) work fully without it.
+
+**Uninstall:**
+
+```bash
+node setup/uninstall.js
+```
+
 ---
 
 ## The Problem
