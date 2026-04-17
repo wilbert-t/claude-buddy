@@ -1,6 +1,6 @@
 {
   "name": "claude-alert",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Never miss a Claude Code approval prompt. Native sound + banner notifications, smart risk classification, and zero macOS permissions beyond Notifications.",
   "main": "scripts/notify.js",
   "type": "module",
