@@ -79,6 +79,7 @@ final class StatusBarController {
                 if self.celebrationTicks >= Self.celebMaxTicks {
                     self.currentState = "idle"
                     self.startCycling(for: "idle")
+                    self.writeIdleState()
                 }
             }
         }
@@ -124,6 +125,14 @@ final class StatusBarController {
             return focusApp(named: app, bundleId: source.bundleId)
         }
         return false
+    }
+
+    private func writeIdleState() {
+        let statePath = (NSHomeDirectory() as NSString)
+            .appendingPathComponent(".claude-notifier/state.json")
+        let payload: [String: Any] = ["status": "idle", "pendingCount": 0]
+        guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return }
+        try? data.write(to: URL(fileURLWithPath: statePath))
     }
 
     private func focusApp(named appName: String, bundleId: String?) -> Bool {

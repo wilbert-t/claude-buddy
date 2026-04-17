@@ -29,13 +29,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Set up notification-based approve/reject
         notificationController = NotificationController()
+        // terminal-notifier handles all notifications — companion is animation/menu bar only
         approvalWatcher = ApprovalWatcher(
-            onApproval: { [weak self] id, tool, command, risk, impact, sourceApp, sourceBundleId, sourceCwd in
-                self?.notificationController?.showApproval(
-                    id: id, tool: tool, command: command, risk: risk, impact: impact,
-                    sourceApp: sourceApp, sourceBundleId: sourceBundleId, sourceCwd: sourceCwd
-                )
-            },
+            onApproval: { _, _, _, _, _, _, _, _ in },
             onDismiss: { [weak self] in
                 self?.notificationController?.dismissCurrent()
             }
