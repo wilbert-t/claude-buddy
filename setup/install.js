@@ -34,6 +34,11 @@ const GITHUB_REPO = 'claude-alert';
 const RELEASES_LATEST_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
 const COMPANION_ZIP_NAME = 'ClaudeNotifier.app.zip';
 
+const TERMINAL_NOTIFIER_VERSION = '2.0.0';
+const TERMINAL_NOTIFIER_URL = `https://github.com/julienXX/terminal-notifier/releases/download/${TERMINAL_NOTIFIER_VERSION}/terminal-notifier-${TERMINAL_NOTIFIER_VERSION}.zip`;
+const TERMINAL_NOTIFIER_APP  = path.join(os.homedir(), '.claude-notifier', 'bin', 'terminal-notifier.app');
+const TERMINAL_NOTIFIER_BIN  = path.join(TERMINAL_NOTIFIER_APP, 'Contents', 'MacOS', 'terminal-notifier');
+
 // Scripts are copied to a stable location so npx cache clears don't break hooks
 const SOURCE_SCRIPTS_DIR = path.join(__dirname, '..', 'scripts');
 const STABLE_SCRIPTS_DIR = path.join(NOTIFIER_DIR, 'scripts');
@@ -240,6 +245,49 @@ async function installCompanionApp() {
     } catch {
       // Best-effort cleanup only
     }
+  }
+}
+
+async function installTerminalNotifier() {
+  if (process.platform !== 'darwin') return false;
+  if (fs.existsSync(TERMINAL_NOTIFIER_BIN)) {
+    console.log('\n✓ terminal-notifier already installed');
+    return true;
+  }
+
+  console.log('\n🔔 Installing terminal-notifier for macOS notifications...');
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-alert-tn-'));
+  const zipPath = path.join(tempDir, 'terminal-notifier.zip');
+
+  try {
+    await downloadFile(TERMINAL_NOTIFIER_URL, zipPath, 'terminal-notifier.zip');
+    console.log('✓ Downloaded terminal-notifier');
+
+    const extractDir = path.join(tempDir, 'extracted');
+    fs.mkdirSync(extractDir, { recursive: true });
+    execFileSync('unzip', ['-o', zipPath, '-d', extractDir], { stdio: 'ignore' });
+
+    const appPath = path.join(extractDir, 'terminal-notifier.app');
+    const binInsideApp = path.join(appPath, 'Contents', 'MacOS', 'terminal-notifier');
+
+    if (!fs.existsSync(binInsideApp)) {
+      throw new Error('terminal-notifier binary not found after extraction');
+    }
+
+    fs.mkdirSync(path.dirname(TERMINAL_NOTIFIER_APP), { recursive: true });
+    fs.rmSync(TERMINAL_NOTIFIER_APP, { recursive: true, force: true });
+    fs.cpSync(appPath, TERMINAL_NOTIFIER_APP, { recursive: true });
+    fs.chmodSync(TERMINAL_NOTIFIER_BIN, 0o755);
+
+    console.log('✓ terminal-notifier installed');
+    return true;
+  } catch (err) {
+    console.log(`⚠️  Could not install terminal-notifier: ${err.message}`);
+    console.log('   Notifications may not appear on macOS 15+');
+    return false;
+  } finally {
+    try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch {}
   }
 }
 
@@ -474,44 +522,8 @@ async function install() {
       }
     }
 
-    // Step 5: Compile Swift notification helper (macOS only)
-    if (process.platform === 'darwin') {
-      const appBundle  = path.join(NOTIFIER_DIR, 'bin', 'claude-notify.app');
-      const contentsDir = path.join(appBundle, 'Contents');
-      const macosDir   = path.join(contentsDir, 'MacOS');
-      const helperBin  = path.join(macosDir, 'claude-notify');
-      const helperSrc  = path.join(__dirname, '..', 'scripts', 'notify-helper.swift');
-      const plistPath  = path.join(contentsDir, 'Info.plist');
-
-      fs.mkdirSync(macosDir, { recursive: true });
-      console.log('\n🔨 Compiling notification helper (this may take ~30s)...');
-
-      const infoPlist = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>CFBundleIdentifier</key>
-  <string>com.claude-alert.notify-helper</string>
-  <key>CFBundleName</key>
-  <string>claude-notify</string>
-  <key>CFBundleVersion</key>
-  <string>1.0</string>
-  <key>CFBundleExecutable</key>
-  <string>claude-notify</string>
-  <key>NSUserNotificationAlertStyle</key>
-  <string>alert</string>
-</dict>
-</plist>`;
-      fs.writeFileSync(plistPath, infoPlist);
-
-      try {
-        execFileSync('swiftc', ['-O', helperSrc, '-o', helperBin], { stdio: 'pipe' });
-        console.log('\n🔨 Compiled notification helper (macOS 15 compatible)');
-      } catch {
-        console.log('\n⚠️  swiftc not found — falling back to osascript (may not work on macOS 15+)');
-        console.log('   To fix: xcode-select --install');
-      }
-    }
+    // Step 5: Install terminal-notifier for reliable macOS notifications
+    await installTerminalNotifier();
 
     // Step 6: Verify sounds (always)
     console.log('\n🔊 Verifying alert sounds...');
