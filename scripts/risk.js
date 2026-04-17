@@ -285,17 +285,17 @@ export function analyzeRisk(tool, command) {
   // Write / Edit tools — extract file path from plain string or JSON tool_input
   if (tool === 'Write' || tool === 'MultiEdit') {
     let filePath = commandStr;
-    try { const p = JSON.parse(commandStr); if (p.path) filePath = p.path; } catch {}
+    try { const p = JSON.parse(commandStr); filePath = p.file_path || p.path || filePath; } catch {}
     return { level: 'medium', reason: `Tool '${tool}' creates or modifies a file`, impact: `Writing to ${filePath}` };
   }
   if (tool === 'Edit') {
     let filePath = commandStr;
-    try { const p = JSON.parse(commandStr); if (p.path) filePath = p.path; } catch {}
+    try { const p = JSON.parse(commandStr); filePath = p.file_path || p.path || filePath; } catch {}
     return { level: 'medium', reason: `Tool '${tool}' modifies an existing file`, impact: `Editing ${filePath}` };
   }
   if (tool === 'NotebookEdit') {
     let filePath = commandStr;
-    try { const p = JSON.parse(commandStr); if (p.path) filePath = p.path; } catch {}
+    try { const p = JSON.parse(commandStr); filePath = p.file_path || p.path || filePath; } catch {}
     return { level: 'medium', reason: `Tool '${tool}' modifies a Jupyter notebook`, impact: `Editing notebook ${filePath}` };
   }
 

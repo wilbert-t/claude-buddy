@@ -18,9 +18,9 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.claude-buddy.ClaudeNotifier
         SWIFT_VERSION: "5.9"
         MACOSX_DEPLOYMENT_TARGET: "13.0"
-        CODE_SIGN_IDENTITY: ""
-        CODE_SIGNING_REQUIRED: "NO"
-        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGNING_REQUIRED: "YES"
+        CODE_SIGNING_ALLOWED: "YES"
     info:
       path: ClaudeNotifier/Info.plist
       properties:

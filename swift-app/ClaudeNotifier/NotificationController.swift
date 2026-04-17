@@ -101,10 +101,6 @@ final class NotificationController: NSObject, UNUserNotificationCenterDelegate {
         content.categoryIdentifier = Self.categoryId
         content.userInfo   = ["id": id]
         content.sound      = .default
-        if #available(macOS 12.0, *) {
-            content.interruptionLevel = .timeSensitive
-        }
-
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
         UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
 
