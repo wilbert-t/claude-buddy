@@ -41,11 +41,16 @@ export function notify(title, body, _platform = process.platform) {
 
   try {
     if (_platform === 'darwin') {
-      execFileSync(
-        'osascript',
-        ['-e', `display notification "${safeBody}" with title "${safeTitle}"`],
-        { stdio: 'ignore', timeout: 5000 }
-      );
+      const helperBin = path.join(os.homedir(), '.claude-notifier', 'bin', 'claude-notify.app', 'Contents', 'MacOS', 'claude-notify');
+      if (fs.existsSync(helperBin)) {
+        execFileSync(helperBin, [safeTitle, safeBody], { stdio: 'ignore', timeout: 5000 });
+      } else {
+        execFileSync(
+          'osascript',
+          ['-e', `display notification "${safeBody}" with title "${safeTitle}"`],
+          { stdio: 'ignore', timeout: 5000 }
+        );
+      }
     } else if (_platform === 'win32') {
       // Detached PowerShell balloon tip — non-blocking
       const ps = [

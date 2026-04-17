@@ -474,7 +474,46 @@ async function install() {
       }
     }
 
-    // Step 5: Verify sounds (always)
+    // Step 5: Compile Swift notification helper (macOS only)
+    if (process.platform === 'darwin') {
+      const appBundle  = path.join(NOTIFIER_DIR, 'bin', 'claude-notify.app');
+      const contentsDir = path.join(appBundle, 'Contents');
+      const macosDir   = path.join(contentsDir, 'MacOS');
+      const helperBin  = path.join(macosDir, 'claude-notify');
+      const helperSrc  = path.join(__dirname, '..', 'scripts', 'notify-helper.swift');
+      const plistPath  = path.join(contentsDir, 'Info.plist');
+
+      fs.mkdirSync(macosDir, { recursive: true });
+      console.log('\n🔨 Compiling notification helper (this may take ~30s)...');
+
+      const infoPlist = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key>
+  <string>com.claude-alert.notify-helper</string>
+  <key>CFBundleName</key>
+  <string>claude-notify</string>
+  <key>CFBundleVersion</key>
+  <string>1.0</string>
+  <key>CFBundleExecutable</key>
+  <string>claude-notify</string>
+  <key>NSUserNotificationAlertStyle</key>
+  <string>alert</string>
+</dict>
+</plist>`;
+      fs.writeFileSync(plistPath, infoPlist);
+
+      try {
+        execFileSync('swiftc', ['-O', helperSrc, '-o', helperBin], { stdio: 'pipe' });
+        console.log('\n🔨 Compiled notification helper (macOS 15 compatible)');
+      } catch {
+        console.log('\n⚠️  swiftc not found — falling back to osascript (may not work on macOS 15+)');
+        console.log('   To fix: xcode-select --install');
+      }
+    }
+
+    // Step 6: Verify sounds (always)
     console.log('\n🔊 Verifying alert sounds...');
     verifySounds();
 

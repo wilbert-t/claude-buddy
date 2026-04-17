@@ -8,7 +8,29 @@ Never miss a Claude Code approval prompt.
 
 ## Install
 
-### Via Plugin (Recommended)
+### Via GitHub (Recommended)
+
+Clone the repo and run the install script directly — no build step, no external dependencies required.
+
+```bash
+git clone https://github.com/wilbert-t/claude-buddy.git
+cd claude-buddy
+node setup/install.js
+```
+
+This registers all hooks, copies scripts to `~/.claude-notifier/scripts/`, and compiles the Swift notification helper on macOS.
+
+> **macOS requirement:** Xcode Command Line Tools must be installed for the notification helper to compile. If not installed: `xcode-select --install`
+
+**Uninstall:**
+
+```bash
+node setup/uninstall.js
+```
+
+---
+
+### Via Plugin
 
 ```
 /plugin install claude-alert@claude-plugins-official
@@ -16,49 +38,13 @@ Never miss a Claude Code approval prompt.
 
 Hooks register automatically. Done.
 
-> **Menu bar robot status (macOS):** Companion app distribution is still in progress. Installer-based companion setup is **not available yet** while signing/notarization is being finalized.
-
 ### Via npm
 
 ```bash
 npx claude-alert install
 ```
 
-Works on macOS, Linux, and Windows.
-
-macOS companion app:
-
-```bash
-npx claude-alert install --with-companion
-```
-
-This companion install path is not available yet (release signing/notarization in progress). Core Claude Alert notifications still work without it.
-
-### From source
-
-Clone the repo and run the install script directly — no build step, no external dependencies required.
-
-```bash
-git clone https://github.com/wilbert-t/claude-alert.git
-cd claude-alert
-node setup/install.js
-```
-
-This registers all hooks, copies scripts to `~/.claude-notifier/scripts/`, and compiles the Swift notification helper on macOS (requires Xcode CLI tools: `xcode-select --install`).
-
-**Optional — menu bar companion app (macOS, when available):**
-
-```bash
-node setup/install.js --with-companion
-```
-
-> Note: `--with-companion` requires a signed + notarized release asset to be published. Until then, core notifications (banners + sounds) work fully without it.
-
-**Uninstall:**
-
-```bash
-node setup/uninstall.js
-```
+> Note: The npm path is available but the GitHub install above is recommended for now while code signing and notarization are being finalized.
 
 ---
 
@@ -167,10 +153,16 @@ jq 'group_by(.riskLevel) | map({risk: .[0].riskLevel, count: length})' ~/.claude
 ## Uninstall
 
 ```bash
-npx claude-alert uninstall
+node setup/uninstall.js
 ```
 
 Use `--clean-all` to also remove audit logs and settings.
+
+Or if installed via npm:
+
+```bash
+npx claude-alert uninstall
+```
 
 ---
 
