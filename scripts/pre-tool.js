@@ -203,10 +203,8 @@ async function main() {
     const stateStatus = risk === 'high' ? 'pending_high' : 'pending_medium';
     characterState.writeState(stateStatus, risk, 1, null, new Date().toISOString());
 
-    // On non-macOS, fire notification directly (no Swift companion app)
-    if (process.platform !== 'darwin') {
-      platformNotify('Claude needs approval', impact);
-    }
+    // Always fire terminal notification — companion app is menu bar UI only
+    platformNotify('Claude needs approval', impact);
 
     rl.close();
     process.exit(0);
